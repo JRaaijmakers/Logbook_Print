@@ -131,6 +131,11 @@ body {
   color: #000;
 }
 
+.dim_label {
+  font-style:italic;
+  color: #777;
+}
+
 /* ===== CARDS ===== */
 .logscreen .summary-card {
   min-height: 90px;
@@ -168,11 +173,15 @@ body {
 .events-table th,
 .events-table td {
   border: 1px solid #e0e0e0;
-  padding: 6px 8px;
+  padding: 5px 7px;
   vertical-align: top;
   font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
   font-size: 12px;
   color: #000;
+}
+
+.events-compact-td {
+    padding: 6px 8px;
 }
 
 .events-table thead th {
@@ -253,6 +262,10 @@ dx-badge-header {
 .badge-full {
   width: 100%;
   padding: 2px;
+  margin-top:0px;
+  border-top: none;
+  border-left: none;
+  border-right: none;
 }
 
 .badge-full div
@@ -287,16 +300,18 @@ dx-badge-header {
   height: 12px;
 }
 
-.status-cell svg
-{
-	margin-top:3px;
-}
-
 .icon-gap {
   margin-right: 4px;
 }
 
-/* ===== FOLLOW-UP CELL ===== */
+.description-cell
+{
+	
+}
+.status-cell svg
+{
+	margin-top:3px;
+}
 .followup-cell {
   padding: 0;
   position: relative;
@@ -311,6 +326,7 @@ dx-badge-header {
   margin: 0px;
   margin-top: 2px;
   width: 100%;
+  font-style:italic;
 }
 
 .followup-body {
@@ -335,13 +351,6 @@ dx-badge-header {
   padding: 3px;
   background-color: #fff;
 }
-
-.event-description-empty
-{
-	margin:0px;
-	padding:0px;	
-}
-
 
 /* ===== LINK ICON ===== */
 .event-link {
@@ -429,7 +438,7 @@ dx-badge-header {
                 <tbody>
                     {% for event in events.data %}
                         <tr>
-							<td>
+							<td>							
 							{% set link = document_link_external(document('1000',event.id)) %}
 								<a class='event-link' href='{{ link|split('href=\'')[1]|split('\'')[0]|trim }}' target='_blank'>
 									<svg width='12px' height='12px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
@@ -458,11 +467,11 @@ dx-badge-header {
                             </td>
 
                             <!-- Omschrijving -->
-                            <td>
+                            <td class='description-cell'>
                                 <div class='dx-badge badge-full'>
                                     <div class='dx-badge-header flex-between'>
-                                        <div>Door: {{ event.tekst.author }}</div>
-                                        <div>{{ event.tekst.date|date('d-m-Y H:i') }}</div>
+                                        <div><span class='dim_label'>Door:</span> {{ event.tekst.author }}</div>
+                                        <div>{{ event.tekst.date|date('d-m-Y H:i') }} {% if event.completed %}- {{ event.time|date('d-m-Y')~' '~event.date|date('H:i') }}{% endif %}</div>
                                     </div>
                                 </div>
                                 <div class='event-description{% if event.tekst.text == '' %}-empty{% endif %}' >{{ event.tekst.text }}</div>
@@ -519,7 +528,7 @@ dx-badge-header {
 														<path d='M19 2h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V7h3V5h-3V2zM7 9h8v2H7zM7 12v2h8v-2h-3zM7 15h8v2H7z'></path>
 													</svg>
 												{% endif %}
-												<div>Door: {{ mail.author }}</div>
+												<div><span class='dim_label'>Door:</span> {{ mail.author }}</div>
 											</div>
 											<div class='ml-auto'>{{ mail.date|date('d-m-Y H:i') }}</div>
 										</div>

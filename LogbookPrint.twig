@@ -1,0 +1,558 @@
+<?php
+/**
+ * EXB R5 - Business suite
+ * Copyright (C) EXB Software 2020 - All Rights Reserved
+ *
+ * This file is part of EXB R5.
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ */
+use EXB\R5\Modules as R5Modules;
+use EXB\IM\Bridge\Modules;
+use EXB\Kernel\Document\Factory;
+use EXB\Kernel\Foundation\Services;
+use EXB\Kernel\Template\StringLoader;
+use EXB\Kernel\Template\FileLoader;
+use EXB\R4\Login\Identity\Named as NamedIdentity;
+use EXB\R4\Login\LoginService;
+
+use EXB\Kernel\Document\Model\SaveHandler\Event\SaveEvent;
+use EXB\Kernel\Document\Model\SaveHandler\SaveHandlerEvents;
+use EXB\Kernel\Document\Model\SavePayload;
+
+use Elastica\Query\BoolQuery;
+use Elastica\Query\Term;
+use Elastica\Query\Terms;
+use EXB\Kernel\Report\CustomFilter;
+use EXB\Kernel\Report\Filter;
+use EXB\Kernel\Database;
+use EXB\Kernel\Localization;
+use \Cocur\Slugify\Slugify;
+use Ramsey\Uuid\Uuid;
+
+require_once __DIR__ . '/../application/r4h.php';
+
+$id = new NamedIdentity('Administrator');
+LoginService::LoginWithIdentity($id);
+
+error_reporting(E_ERROR);
+ini_set('display_errors', 'on');
+
+setlocale(LC_TIME, 'nl_NL.UTF-8');
+
+\EXB\R4\Config::override("product.product_stage", "dev");
+
+$templateText = "
+<html>
+{% set dateArg     = '27-11-2025' %}
+{% set shiftArg    = 'Dagdienst' %}
+{% set locationArg = '' %}
+
+{% set showBody = false %}
+
+{% set shifts_raw = Logbook_getShifts() %}
+{% set ShiftId = null %}
+{% set ShiftDate     = null %}
+{% set ShiftDay      = null %}
+{% set ShiftDayPart  = null %}
+{% set ShiftLocation = null %}  
+
+{% set ShiftEmployees = [] %}  
+
+{% for index, shift in shifts_raw.data %}
+	{% if shift.date == dateArg and shift.shift == shiftArg %}		
+		{% set ShiftId 		 = shift.id %}
+		{% set ShiftDate     = shift.date %}
+		{% set ShiftDay      = shift.dayName %}
+		{% set ShiftDayPart  = shift.shift %}		
+		{% set ShiftLocation = shift.location %}  		
+		{% if shift.shift == shiftArg and shift.location == locationArg %}
+			{% set ShiftEmployees = ShiftEmployees|merge([{    			
+    			'name': shift.employee,
+    			'position': shift.position
+			}]) %}
+		{% endif %}
+    {% endif %}
+{% endfor %}
+
+{% set events = Logbook_getShiftEvents(ShiftId) %}
+<head>
+	<title>Digitaal Productielogboek - {{ ShiftDayPart }}{% if ShiftLocation != '' %} locatie '{{ ShiftLocation }}'{% endif%}, 
+            {{ ShiftDay|slice(0,1)|upper ~ ShiftDay|slice(1) }} {{ ShiftDate|date('d M Y') }}</title>
+</head>
+<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB' crossorigin='anonymous'>
+<link href='https://demo2.exb-software.com/r6/css/dx.light.css'>
+<style type='text/css'>/* ===== FONT ===== */
+@font-face {
+  font-family: 'Geist Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-400-normal.woff2) format('woff2'),
+       url(https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-400-normal.woff) format('woff');
+}
+
+/* ===== PRINT ===== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 20mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+  
+  .page-break {
+    page-break-before: always;
+  }
+}
+
+/* ===== GENERAL ===== */
+* {
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+body {
+  height: 210mm;
+  width: 297mm;
+  margin: 0 auto;
+}
+
+.header {
+  font-family: 'Geist Sans', 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-size: 16px;
+  color: #000;
+}
+
+/* ===== CARDS ===== */
+.logscreen .summary-card {
+  min-height: 90px;
+}
+
+.summary-card.warning {
+  border-left: 5px solid #ffc107;
+}
+
+.summary-card.danger {
+  background: #dc3545;
+  color: #fff;
+}
+
+.followup-count {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.followup-item {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+/* ===== TABLE ===== */
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #000;
+  table-layout: auto;
+}
+
+.events-table th,
+.events-table td {
+  border: 1px solid #e0e0e0;
+  padding: 6px 8px;
+  vertical-align: top;
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  color: #000;
+}
+
+.events-table thead th {
+  background: #f5f5f5;
+  color: #333;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.events-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.noborder td {
+  border: none;
+  font-size: 12px;
+}
+
+.events-table .actions a {
+  display: block;
+  margin: 4px 0;
+  text-decoration: none;
+}
+
+/* ===== BADGES ===== */
+.dx-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid #cfcfcf;
+}
+
+.dx-badge .header {
+  font-size: 16px;
+}
+
+dx-badge-header {
+  background-color: transparent;
+}
+
+/* ===== FOLLOW-UP BLOCK ===== */
+.dx-followup {
+  margin-top: 4px;
+  padding: 6px;
+  background: #f7f7f7;
+  border: 1px solid #dcdcdc;
+  border-radius: 2px;
+}
+
+.dx-muted {
+  color: #777;
+  font-size: 12px;
+}
+
+.dx-strong {
+  font-weight: 600;
+}
+
+/* ===== UTILITIES ===== */
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.badge-full {
+  width: 100%;
+  padding: 2px;
+}
+
+.badge-full div
+{
+  padding-bottom:1px;
+}
+
+.badge-compact {
+  margin: 0px;
+  margin-bottom: 1px;
+  padding: 2px 6px;
+  width: 100%;
+}
+
+.badge-compact-header {
+	border-bottom: 0px solid #E1E1E1; 
+	padding-bottom:0px; 
+	margin-bottom:0px;
+}
+
+.badge-compact-header div {
+	padding-bottom:1px; 
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-xs {
+  width: 12px;
+  height: 12px;
+}
+
+.status-cell svg
+{
+	margin-top:3px;
+}
+
+.icon-gap {
+  margin-right: 4px;
+}
+
+/* ===== FOLLOW-UP CELL ===== */
+.followup-cell {
+  padding: 0;
+  position: relative;
+}
+
+.followup-content {
+  padding: 0px;
+  padding-right: 8px;
+}
+
+.followup-empty {
+  margin: 0px;
+  margin-top: 2px;
+  width: 100%;
+}
+
+.followup-body {
+  margin-top: 4px;
+}
+
+/* ===== STATUS BAR ===== */
+.status-bar {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: 3px;
+  width: 5px;
+}
+
+.status-bar.active {
+  background-color: var(--status-color);
+}
+
+/* ===== EVENT DESCRIPTION ===== */
+.event-description {
+  padding: 3px;
+  background-color: #fff;
+}
+
+.event-description-empty
+{
+	margin:0px;
+	padding:0px;	
+}
+
+
+/* ===== LINK ICON ===== */
+.event-link {
+  display: block;
+  margin-top: 2px;
+}
+
+
+</style>
+<body>
+<!--<pre>-->
+
+<div class='container-fluid logscreen'>
+
+    <!-- ===== HEADER ===== -->
+    <!--<div class='text-center'>-->
+	<div class=''>
+        <div class='header'>
+            <h3>Digitaal Productielogboek</h3>
+            {{ ShiftDayPart }}{% if ShiftLocation != '' %} locatie '{{ ShiftLocation }}'{% endif%}, 
+            {{ ShiftDay|slice(0,1)|upper ~ ShiftDay|slice(1) }} {{ ShiftDate|date('d M Y') }}
+        </div>
+    </div>
+
+    <!-- ===== EMPLOYEES TABLE ===== -->
+    <div class='row mt-4'>
+        <div class='col'>
+            <div class='header'>Medewerker(s)</div>
+            <table class='table table-bordered events-table'>
+                <thead class='thead-light'>
+                    <tr>
+                        <th>Naam (Functie)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in ShiftEmployees %}
+                        <tr>
+                            <td>{{ employee.name|split(' (')[0] }} ({{ employee.position }})</td>                            
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+	<div class='row mt-4'>
+        <div class='col'>
+            <div class='header'>Absenties</div>
+            <table class='table table-bordered events-table'>
+                <thead class='thead-light'>
+                    <tr>
+                        <th width='284px'>Naam</th>
+                        <th>Datum</th>
+                    </tr>
+                </thead>
+                <tbody>
+					
+						<tr>
+                            <td></td><td></td>
+						</tr>
+										
+	 			</tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== EVENTS TABLE ===== -->
+	<div class='page-break'></div>
+    <div class='row mt-4'>
+        <div class='col'>
+            <div class='header'>Gebeurtenissen</div>
+            <table class='table table-bordered events-table'>
+                <thead class='thead-light'>
+                    <tr>
+						<th></th>
+                        <th>Area</th>
+                        <th>Stilstand</th>
+                        <th width='150px'>Locatie</th>
+                        <th width='150px'>Gebeurtenis</th>
+                        <th>Beschrijving</th>
+						<th width='16px'></th>
+                        <th width='275px'>Opvolging</th>						
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events.data %}
+                        <tr>
+							<td>
+							{% set link = document_link_external(document('1000',event.id)) %}
+								<a class='event-link' href='{{ link|split('href=\'')[1]|split('\'')[0]|trim }}' target='_blank'>
+									<svg width='12px' height='12px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+									  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>
+									  <g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g>
+									  <g id='SVGRepo_iconCarrier'>
+										<path fill-rule='evenodd' clip-rule='evenodd' d='M10.975 14.51a1.05 1.05 0 0 0 0-1.485 2.95 2.95 0 0 1 0-4.172l3.536-3.535a2.95 2.95 0 1 1 4.172 4.172l-1.093 1.092a1.05 1.05 0 0 0 1.485 1.485l1.093-1.092a5.05 5.05 0 0 0-7.142-7.142L9.49 7.368a5.05 5.05 0 0 0 0 7.142c.41.41 1.075.41 1.485 0zm2.05-5.02a1.05 1.05 0 0 0 0 1.485 2.95 2.95 0 0 1 0 4.172l-3.5 3.5a2.95 2.95 0 1 1-4.171-4.172l1.025-1.025a1.05 1.05 0 0 0-1.485-1.485L3.87 12.99a5.05 5.05 0 0 0 7.142 7.142l3.5-3.5a5.05 5.05 0 0 0 0-7.142 1.05 1.05 0 0 0-1.485 0z' fill='#000000'></path>
+									  </g>
+									</svg>
+								</a>
+							</td>
+                            <!-- Area -->
+                            <td>{{ event.var1438 }}</td>
+
+                            <!-- Stilstand -->
+                            <td>{{ event.stilstand ? 'Ja' : '' }}</td>
+
+                            <!-- Locatie -->
+                            <td>
+                                {{ event.location }}<br/>{{ event.sublocation }}
+                            </td>
+
+                            <!-- Soort gebeurtenis -->
+                            <td>
+                                {{ event.activity }}
+                            </td>
+
+                            <!-- Omschrijving -->
+                            <td>
+                                <div class='dx-badge badge-full'>
+                                    <div class='dx-badge-header flex-between'>
+                                        <div>Door: {{ event.tekst.author }}</div>
+                                        <div>{{ event.tekst.date|date('d-m-Y H:i') }}</div>
+                                    </div>
+                                </div>
+                                <div class='event-description{% if event.tekst.text == '' %}-empty{% endif %}' >{{ event.tekst.text }}</div>
+                            </td>
+
+							<!-- Status -->
+							<td class='status-cell'>
+								{% if event.completed %}
+									<svg stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' class='text-green-600' height='14' width='14' xmlns='http://www.w3.org/2000/svg'><path fill='none' d='M0 0h24v24H0V0z'></path><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z'></path></svg>
+								{% else %}
+									<svg stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' class='text-gray-700' height='14' width='14' xmlns='http://www.w3.org/2000/svg'>
+  <path fill='none' d='M0 0h24v24H0z'></path>
+  <path d='M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z'></path>
+</svg>							
+								{% endif %}
+							</td>
+
+
+                            <!-- Opvolging -->
+                            <td class='followup-cell'>
+							  <div class='followup-content'>
+								{% if event.mails|length > 0 %}	
+																
+									{% for mail in event.mails %}	
+									  <div class='dx-badge badge-compact'>
+										<div class='flex-between badge-compact-header'>
+											<div class='flex-center'>
+												{% if mail.type != 'conversation' %}
+													{# mail.type #}
+												{% if mail.direction == '' or mail.direction == 'uitgaand' %}	
+													<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+													  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>
+													  <g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g>
+													  <g id='SVGRepo_iconCarrier'>
+														<path fill-rule='evenodd' clip-rule='evenodd' d='M2.8 4C1.86451 4 1.0468 4.46923 0.544325 5.16792C0.20074 5.64567 0 6.23499 0 6.86667V17.1333C0 18.682 1.21964 20 2.8 20H10.2C10.7523 20 11.2 19.5523 11.2 19C11.2 18.4477 10.7523 18 10.2 18H2.8C2.39214 18 2 17.6466 2 17.1333V7.94766L7.77948 14.3096C8.96986 15.6199 11.0301 15.6199 12.2205 14.3096L18 7.94766V12.1333C18 12.6856 18.4477 13.1333 19 13.1333C19.5523 13.1333 20 12.6856 20 12.1333V6.86667C20 6.235 19.7993 5.64567 19.4557 5.16792C18.9532 4.46923 18.1355 4 17.2 4H2.8ZM9.25983 12.9647L2.9327 6H17.0673L10.7402 12.9647C10.3434 13.4015 9.65662 13.4015 9.25983 12.9647ZM18.2929 21.2929C17.9024 21.6834 17.9024 22.3166 18.2929 22.7071C18.6834 23.0976 19.3166 23.0976 19.7071 22.7071L22.7071 19.7071C23.0976 19.3166 23.0976 18.6834 22.7071 18.2929L19.7071 15.2929C19.3166 14.9024 18.6834 14.9024 18.2929 15.2929C17.9024 15.6834 17.9024 16.3166 18.2929 16.7071L19.5858 18H15C14.4477 18 14 18.4477 14 19C14 19.5523 14.4477 20 15 20H19.5858L18.2929 21.2929Z' fill='#000000'></path>
+													  </g>
+													</svg>
+												{% else %} 	
+												<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+												  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>
+												  <g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g>
+												  <g id='SVGRepo_iconCarrier'>
+													<path fill-rule='evenodd' clip-rule='evenodd' d='M2.8 4C1.86451 4 1.0468 4.46923 0.544325 5.16792C0.20074 5.64567 0 6.23499 0 6.86667V17.1333C0 18.682 1.21964 20 2.8 20H10.2C10.7523 20 11.2 19.5523 11.2 19C11.2 18.4477 10.7523 18 10.2 18H2.8C2.39214 18 2 17.6466 2 17.1333V7.94766L7.77948 14.3096C8.96986 15.6199 11.0301 15.6199 12.2205 14.3096L18 7.94766V12.1333C18 12.6856 18.4477 13.1333 19 13.1333C19.5523 13.1333 20 12.6856 20 12.1333V6.86667C20 6.235 19.7993 5.64567 19.4557 5.16792C18.9532 4.46923 18.1355 4 17.2 4H2.8ZM9.25983 12.9647L2.9327 6H17.0673L10.7402 12.9647C10.3434 13.4015 9.65662 13.4015 9.25983 12.9647ZM18.7071 16.7071C19.0976 16.3166 19.0976 15.6834 18.7071 15.2929C18.3166 14.9024 17.6834 14.9024 17.2929 15.2929L14.2929 18.2929C13.9024 18.6834 13.9024 19.3166 14.2929 19.7071L17.2929 22.7071C17.6834 23.0976 18.3166 23.0976 18.7071 22.7071C19.0976 22.3166 19.0976 21.6834 18.7071 21.2929L17.4142 20H22C22.5523 20 23 19.5523 23 19C23 18.4477 22.5523 18 22 18H17.4142L18.7071 16.7071Z' fill='#000000'></path>
+												  </g>
+												</svg>
+
+												{% endif %}
+
+
+												{% else %}													
+													<svg class='icon-sm icon-gap text-gray-700' stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+														<path fill='none' d='M0 0h24v24H0V0z'></path>
+														<path d='M17 19.22H5V7h7V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7.22z'></path>
+														<path d='M19 2h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V7h3V5h-3V2zM7 9h8v2H7zM7 12v2h8v-2h-3zM7 15h8v2H7z'></path>
+													</svg>
+												{% endif %}
+												<div>Door: {{ mail.author }}</div>
+											</div>
+											<div class='ml-auto'>{{ mail.date|date('d-m-Y H:i') }}</div>
+										</div>
+
+										{% if showBody %}
+											<div class='followup-body'>{{ mail.text|raw|replace({'<br><br><br>':'<br>'})|replace({'<br><br>':'<br>'}) }}</div>
+										{% endif %}
+									</div>
+
+									 {% endfor %}
+
+								{% else %}
+								  <div class='dx-muted followup-empty'>Geen opvolging</div>
+								{% endif %}
+							  </div>
+
+							  <!-- status bar -->
+							  <div class='status-bar' {% if event.completed == false %}style='background-color: {{ event.backgroundColor }};'{% endif %}></div>
+							</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
+";
+
+$template = new  \EXB\Kernel\Template(new Stringloader($templateText));
+echo $template->render($templateText, []);
+
+

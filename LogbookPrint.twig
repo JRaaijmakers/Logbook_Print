@@ -48,8 +48,6 @@ $templateText = "
 {% set shiftArg    = 'Dagdienst' %}
 {% set locationArg = '' %}
 
-{% set showBody = true %}
-{% set ShiftId = 30102 %}
 {% set Shift = Logbook_getShiftOverview(ShiftId) %}
 {% set events = Logbook_getShiftEvents(ShiftId) %}
 <head>
@@ -342,6 +340,7 @@ color:red;
 
 </style>
 <body>
+{{ show_email_body }}
 <div class='container-fluid logscreen'>
     <!-- ===== HEADER ===== -->
     <!--<div class='text-center'>-->
@@ -458,7 +457,7 @@ color:red;
             <table class='table table-bordered events-table'>
                 <thead class='thead-light'>
                     <tr>
-						<th></th>
+						{% if showEventLinks %}<th></th>{% endif %}
                         <th>Area</th>
                         <th>Stilstand</th>
                         <th width='150px'>Locatie</th>
@@ -471,6 +470,7 @@ color:red;
                 <tbody>
                     {% for event in events.data %}
                         <tr>
+							{% if showEventLinks %}
 							<td>							
 							{% set link = document_link_external(document('1000',event.id)) %}
 								<a class='event-link' href='{{ link|split('href=\'')[1]|split('\'')[0]|trim }}' target='_blank'>
@@ -483,6 +483,7 @@ color:red;
 									</svg>
 								</a>
 							</td>
+							{% endif %}
                             <!-- Area -->
                             <td>{{ event.var1438 }}</td>
 
@@ -610,6 +611,10 @@ color:red;
 ";
 
 $template = new  \EXB\Kernel\Template(new Stringloader($templateText));
-echo $template->render($templateText, []);
 
-
+/* 
+int ShiftId (incident id): id to fetch data [required]
+bool showEventLinks: showing outer left column with url link at event rows
+bool showBody: show email body text for each email on event 
+*/
+echo $template->render($templateText, ['ShiftId' => 30102,'showEventLinks' => true, 'showBody' => true]);

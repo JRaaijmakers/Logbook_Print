@@ -30,7 +30,6 @@ use EXB\Kernel\Database;
 use EXB\Kernel\Localization;
 use \Cocur\Slugify\Slugify;
 use Ramsey\Uuid\Uuid;
-
 require_once __DIR__ . '/../application/r4h.php';
 
 $id = new NamedIdentity('Administrator');
@@ -49,37 +48,12 @@ $templateText = "
 {% set shiftArg    = 'Dagdienst' %}
 {% set locationArg = '' %}
 
-{% set showBody = false %}
-
-{% set shifts_raw = Logbook_getShifts() %}
-{% set ShiftId = null %}
-{% set ShiftDate     = null %}
-{% set ShiftDay      = null %}
-{% set ShiftDayPart  = null %}
-{% set ShiftLocation = null %}  
-
-{% set ShiftEmployees = [] %}  
-
-{% for index, shift in shifts_raw.data %}
-	{% if shift.date == dateArg and shift.shift == shiftArg %}		
-		{% set ShiftId 		 = shift.id %}
-		{% set ShiftDate     = shift.date %}
-		{% set ShiftDay      = shift.dayName %}
-		{% set ShiftDayPart  = shift.shift %}		
-		{% set ShiftLocation = shift.location %}  		
-		{% if shift.shift == shiftArg and shift.location == locationArg %}
-			{% set ShiftEmployees = ShiftEmployees|merge([{    			
-    			'name': shift.employee,
-    			'position': shift.position
-			}]) %}
-		{% endif %}
-    {% endif %}
-{% endfor %}
-
+{% set showBody = true %}
+{% set ShiftId = 30102 %}
+{% set Shift = Logbook_getShiftOverview(ShiftId) %}
 {% set events = Logbook_getShiftEvents(ShiftId) %}
 <head>
-	<title>Digitaal Productielogboek - {{ ShiftDayPart }}{% if ShiftLocation != '' %} locatie '{{ ShiftLocation }}'{% endif%}, 
-            {{ ShiftDay|slice(0,1)|upper ~ ShiftDay|slice(1) }} {{ ShiftDate|date('d M Y') }}</title>
+	<title>Digitaal Productielogboek - {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}</title>
 </head>
 <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB' crossorigin='anonymous'>
 <link href='https://demo2.exb-software.com/r6/css/dx.light.css'>
@@ -358,27 +332,30 @@ dx-badge-header {
   margin-top: 2px;
 }
 
+.text-green-600{
+color:green;
+}
+
+.text-red-600{
+color:red;
+}
 
 </style>
 <body>
-<!--<pre>-->
-
 <div class='container-fluid logscreen'>
-
     <!-- ===== HEADER ===== -->
     <!--<div class='text-center'>-->
 	<div class=''>
         <div class='header'>
             <h3>Digitaal Productielogboek</h3>
-            {{ ShiftDayPart }}{% if ShiftLocation != '' %} locatie '{{ ShiftLocation }}'{% endif%}, 
-            {{ ShiftDay|slice(0,1)|upper ~ ShiftDay|slice(1) }} {{ ShiftDate|date('d M Y') }}
+            {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}
         </div>
     </div>
 
     <!-- ===== EMPLOYEES TABLE ===== -->
     <div class='row mt-4'>
         <div class='col'>
-            <div class='header'>Medewerker(s)</div>
+            <div class='header'>Medewerkers</div>
             <table class='table table-bordered events-table'>
                 <thead class='thead-light'>
                     <tr>
@@ -386,12 +363,35 @@ dx-badge-header {
                     </tr>
                 </thead>
                 <tbody>
-                    {% for employee in ShiftEmployees %}
+                    {% for employee in Shift.day_shifts %}
                         <tr>
-                            <td>{{ employee.name|split(' (')[0] }} ({{ employee.position }})</td>                            
+                            <td>{{ employee.employee|split(' (')[0] }} ({{ employee.position }})</td>                            
                         </tr>
                     {% endfor %}
                 </tbody>
+            </table>
+        </div>
+    </div>
+	<div class='row mt-4'>
+        <div class='col'>
+            <div class='header'>Mededelingen</div>
+            <table class='table table-bordered events-table'>
+                <thead class='thead-light'>
+                    <tr>
+                        <th width='210px'>Locatie</th>
+                        <th>Mededeling</th>
+                        <th>Periode</th>
+                    </tr>
+                </thead>
+                <tbody>
+					{% for announce in Shift.overview.announcements %}
+						<tr>
+							<td>{% if announce.location != '' %}{{ announce.location }}{% else %}<i>Alle</i>{% endif %}</td>	
+                            <td>{{ announce.title }}</td>
+							<td>{{ announce.startdate|date('d-m-Y') }}{% if announce.enddate != '' %} t/m {{ announce.enddate|date('d-m-Y') }}{% else %} >{% endif %}</td>
+						</tr>
+					{% endfor %}				
+	 			</tbody>
             </table>
         </div>
     </div>
@@ -402,20 +402,53 @@ dx-badge-header {
             <table class='table table-bordered events-table'>
                 <thead class='thead-light'>
                     <tr>
-                        <th width='284px'>Naam</th>
-                        <th>Datum</th>
+                        <th width='210px'>Medewerker</th>
+                        <th>Periode</th>
                     </tr>
                 </thead>
                 <tbody>
-					
+					{% for absence in Shift.overview.vacation %}
 						<tr>
-                            <td></td><td></td>
+                            <td>{{ absence.employee }}</td><td>{{ absence.startdate }}{% if absence.enddate != '' %} - {{ absence.enddate }}{% else %}&gt;{% endif %}</td>
 						</tr>
-										
+					{% endfor %}				
 	 			</tbody>
             </table>
         </div>
     </div>
+
+	<div class='row mt-4'>
+        <div class='col'>
+            <div class='header'>Planning</div>
+            <table class='table table-bordered events-table'>
+                <thead class='thead-light'>
+                    <tr>
+                        <th width='50px'>Status</th>
+						<th>Locatie</th>
+                        <th>Activiteit</th>
+                        <th>Tijdsplanning</th>						
+                    </tr>
+                </thead>
+                <tbody>
+					{% for planning in Shift.overview.planning %}
+						<tr>
+							<td>
+								{% if planning.event %}
+									<svg height='16' width='16' xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-circle-check text-green-600 w-4 h-4'><circle cx='12' cy='12' r='10'></circle><path d='m9 12 2 2 4-4'></path></svg>
+								{% else %}
+									<svg height='16' width='16' xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-circle-alert text-red-500 w-4 h-4'><circle cx='12' cy='12' r='10'></circle><line x1='12' x2='12' y1='8' y2='12'></line><line x1='12' x2='12.01' y1='16' y2='16'></line></svg>
+								{% endif %}
+							</td>
+							<td>{% if planning.location != '' %}{{ planning.location }}{% else %}<i>Geen</i>{% endif %}</td>	
+                            <td>{{ planning.description }}</td>
+							<td>{{ planning.start }} t/m {{ planning.end }}</td>							
+						</tr>
+					{% endfor %}				
+	 			</tbody>
+            </table>
+        </div>
+    </div>
+
 
     <!-- ===== EVENTS TABLE ===== -->
 	<div class='page-break'></div>
@@ -501,6 +534,21 @@ dx-badge-header {
 											<div class='flex-center'>
 												{% if mail.type != 'conversation' %}
 													{# mail.type #}
+												
+												{% if mail.type == 'inbox' %}
+													<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+													  <!-- Envelope -->
+													  <path fill='#000000' fill-rule='evenodd' clip-rule='evenodd'
+														d='M2.8 4C1.86451 4 1.0468 4.46923 0.544325 5.16792C0.20074 5.64567 0 6.23499 0 6.86667V17.1333C0 18.682 1.21964 20 2.8 20H10.2C10.7523 20 11.2 19.5523 11.2 19C11.2 18.4477 10.7523 18 10.2 18H2.8C2.39214 18 2 17.6466 2 17.1333V7.94766L7.77948 14.3096C8.96986 15.6199 11.0301 15.6199 12.2205 14.3096L18 7.94766V12.1333C18 12.6856 18.4477 13.1333 19 13.1333C19.5523 13.1333 20 12.6856 20 12.1333V6.86667C20 6.235 19.7993 5.64567 19.4557 5.16792C18.9532 4.46923 18.1355 4 17.2 4H2.8ZM9.25983 12.9647L2.9327 6H17.0673L10.7402 12.9647C10.3434 13.4015 9.65662 13.4015 9.25983 12.9647Z'/>
+													  <!-- Arrow pointing left -->
+													  <g transform='translate(37 0) scale(-1 1)'>
+														<path fill='#000000' fill-rule='evenodd' clip-rule='evenodd'
+														  d='M18.2929 21.2929C17.9024 21.6834 17.9024 22.3166 18.2929 22.7071C18.6834 23.0976 19.3166 23.0976 19.7071 22.7071L22.7071 19.7071C23.0976 19.3166 23.0976 18.6834 22.7071 18.2929L19.7071 15.2929C19.3166 14.9024 18.6834 14.9024 18.2929 15.2929C17.9024 15.6834 17.9024 16.3166 18.2929 16.7071L19.5858 18H15C14.4477 18 14 18.4477 14 19C14 19.5523 14.4477 20 15 20H19.5858L18.2929 21.2929Z'/>
+													  </g>
+													</svg>											
+												
+												{% endif %}
+													
 												{% if mail.direction == '' or mail.direction == 'uitgaand' %}	
 													<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
 													  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>

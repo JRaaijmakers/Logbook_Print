@@ -394,7 +394,7 @@ color:red;
 	<div class=''>
         <div class='header'>
             <h3>{{ appname }}</h3>
-            {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}
+            {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ ' '~Shift.displayName }}
         </div>
     </div>
 
@@ -435,7 +435,7 @@ color:red;
 						<tr>
 							<td>{% if announce.location != '' %}{{ announce.location }}{% else %}<i>Alle</i>{% endif %}</td>	
                             <td>{{ announce.title }}</td>
-							<td>{{ announce.startdate|date('d-m-Y') }}{% if announce.enddate != '' %} t/m {{ announce.enddate|date('d-m-Y') }}{% else %} >{% endif %}</td>
+							<td>{{ announce.startdate|date('d-m-Y') }}{% if announce.enddate != '' %} t/m {{ ' '~announce.enddate|date('d-m-Y') }}{% else %} >{% endif %}</td>
 						</tr>
 					{% endfor %}				
 	 			</tbody>
@@ -457,7 +457,7 @@ color:red;
                 <tbody>
 					{% for absence in Shift.overview.vacation %}
 						<tr>
-                            <td>{{ absence.employee }}</td><td>{{ absence.startdate }}{% if absence.enddate != '' %} - {{ absence.enddate }}{% else %}&gt;{% endif %}</td>
+                            <td>{{ absence.employee }}</td><td>{{ absence.startdate }}{% if absence.enddate != '' %} - {{ ' '~absence.enddate }}{% else %}&gt;{% endif %}</td>
 						</tr>
 					{% endfor %}				
 	 			</tbody>
@@ -491,7 +491,7 @@ color:red;
 							</td>
 							<td>{% if planning.location != '' %}{{ planning.location }}{% else %}<i>Alle</i>{% endif %}</td>	
                             <td>{{ planning.description }}</td>
-							<td>{{ planning.start }} t/m {{ planning.end }}</td>							
+							<td>{{ planning.start }} t/m {{ ' '~planning.end }}</td>							
 						</tr>
 					{% endfor %}				
 	 			</tbody>

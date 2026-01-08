@@ -387,7 +387,6 @@ color:red;
 
 </style>
 <body>
-{{ dump(events) }}
 <div class='container-fluid logscreen'>
     <!-- ===== HEADER ===== -->
     <!--<div class='text-center'>-->
@@ -683,4 +682,4 @@ $appname = \EXB\R4\Config::get('r6.app_name','Digitaal Logboek');
 $area = \EXB\R4\Config::get('logbook:event.columns_before_1',false);
 $stilstand = \EXB\R4\Config::get('logbook:event.columns_before_2',false);
 
-echo $template->render($templateText, ['appname' => $appname,'ShiftId' => 38367,'showBody' => true,'area' => $area,'stilstand' => $stilstand]);
+echo $template->render($templateText, ['appname' => $appname,'ShiftId' => 30101,'showBody' => true,'area' => $area,'stilstand' => $stilstand]);

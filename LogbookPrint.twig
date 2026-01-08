@@ -50,6 +50,29 @@ $templateText = "
 
 {% set Shift = Logbook_getShiftOverview(ShiftId) %}
 {% set events = Logbook_getShiftEvents(ShiftId) %}
+
+{% set nAnnounce = Shift.overview.announcements|length %}
+{% set nVacation = Shift.overview.vacation|length %}
+{% set nPlanning = Shift.overview.planning|length %}
+
+{% set showAnnounce = true %}
+{% set showVacation = true %}
+{% set showPlanning = true %}
+{% if nAnnounce == 0 %}
+	{% set showAnnounce = false %}
+{% endif %}
+{% if nVacation == 0 %}
+	{% set showVacation = false %}
+{% endif %}
+{% if nPlanning == 0 %}
+	{% set showPlanning = false %}
+{% endif %}
+
+{% set eventsTablePageBreak = true %}
+{% if showAnnounce == false and showVacation == false and showPlanning == false %}
+	{% set eventsTablePageBreak = false %}
+{% endif %}
+
 <head>
 	<title>Digitaal Productielogboek - {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}</title>
 </head>
@@ -69,12 +92,22 @@ $templateText = "
 @media print {
   @page {
     size: A4 landscape;
-    margin: 20mm;
+    margin: 10mm;
   }
-
+	
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  body {
+	margin: 0;
+  }
+
+  .container,
+  .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   tr {
@@ -89,12 +122,6 @@ $templateText = "
 /* ===== GENERAL ===== */
 * {
   font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-}
-
-body {
-  height: 210mm;
-  width: 297mm;
-  margin: 0 auto;
 }
 
 .header {
@@ -263,8 +290,8 @@ dx-badge-header {
 }
 
 .icon-sm {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .icon-xs {
@@ -276,14 +303,24 @@ dx-badge-header {
   margin-right: 4px;
 }
 
+.icon-gap-mail{
+	margin-right: 0px;
+}
+.icon-gap-comment
+{
+	margin-right: 14px;
+}
+
 .description-cell
 {
 	
 }
+
 .status-cell svg
 {
 	margin-top:3px;
 }
+
 .followup-cell {
   padding: 0;
   position: relative;
@@ -340,13 +377,12 @@ color:red;
 
 </style>
 <body>
-{{ show_email_body }}
 <div class='container-fluid logscreen'>
     <!-- ===== HEADER ===== -->
     <!--<div class='text-center'>-->
 	<div class=''>
         <div class='header'>
-            <h3>Digitaal Productielogboek</h3>
+            <h3>{{ appname }}</h3>
             {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}
         </div>
     </div>
@@ -371,6 +407,7 @@ color:red;
             </table>
         </div>
     </div>
+{% if showAnnounce %}	
 	<div class='row mt-4'>
         <div class='col'>
             <div class='header'>Mededelingen</div>
@@ -394,7 +431,8 @@ color:red;
             </table>
         </div>
     </div>
-
+{% endif %}
+{% if showVacation %}
 	<div class='row mt-4'>
         <div class='col'>
             <div class='header'>Absenties</div>
@@ -415,7 +453,9 @@ color:red;
             </table>
         </div>
     </div>
+{% endif %}
 
+{% if showPlanning %}
 	<div class='row mt-4'>
         <div class='col'>
             <div class='header'>Planning</div>
@@ -438,7 +478,7 @@ color:red;
 									<svg height='16' width='16' xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-circle-alert text-red-500 w-4 h-4'><circle cx='12' cy='12' r='10'></circle><line x1='12' x2='12' y1='8' y2='12'></line><line x1='12' x2='12.01' y1='16' y2='16'></line></svg>
 								{% endif %}
 							</td>
-							<td>{% if planning.location != '' %}{{ planning.location }}{% else %}<i>Geen</i>{% endif %}</td>	
+							<td>{% if planning.location != '' %}{{ planning.location }}{% else %}<i>Alle</i>{% endif %}</td>	
                             <td>{{ planning.description }}</td>
 							<td>{{ planning.start }} t/m {{ planning.end }}</td>							
 						</tr>
@@ -447,31 +487,39 @@ color:red;
             </table>
         </div>
     </div>
-
+{% endif %}
 
     <!-- ===== EVENTS TABLE ===== -->
-	<div class='page-break'></div>
+	{% if eventsTablePageBreak %}
+		<div class='page-break'></div>
+	{% endif %}
     <div class='row mt-4'>
         <div class='col'>
             <div class='header'>Gebeurtenissen</div>
             <table class='table table-bordered events-table'>
                 <thead class='thead-light'>
                     <tr>
-						{% if showEventLinks %}<th></th>{% endif %}
-                        <th>Area</th>
-                        <th>Stilstand</th>
-                        <th width='150px'>Locatie</th>
-                        <th width='150px'>Gebeurtenis</th>
-                        <th>Beschrijving</th>
-						<th width='16px'></th>
-                        <th width='275px'>Opvolging</th>						
+						<th width='18px'></th>						
+                        {% if area != false %}
+							<th>Area</th>
+						{% endif %}						
+						{% if stilstand != false %}							
+							<th width='35px'>Stilstand</th>							
+						{% endif %}
+                        <th >Locatie</th>
+                        <th >Gebeurtenis</th>
+                        <th width='30%'>Beschrijving</th>
+						<th width='18px'></th>
+                        <th width='30%'>Opvolging</th>						
                     </tr>
                 </thead>
                 <tbody>
                     {% for event in events.data %}
                         <tr>
-							{% if showEventLinks %}
-							<td>							
+							
+							<td>		
+							<!-- <pre>{{ dump(event) }} -->
+																					
 							{% set link = document_link_external(document('1000',event.id)) %}
 								<a class='event-link' href='{{ link|split('href=\'')[1]|split('\'')[0]|trim }}' target='_blank'>
 									<svg width='12px' height='12px' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
@@ -483,13 +531,15 @@ color:red;
 									</svg>
 								</a>
 							</td>
-							{% endif %}
+							
                             <!-- Area -->
-                            <td>{{ event.var1438 }}</td>
-
+							{% if area != false %}
+                            	<td>{{ event[area|split(',')[0]] }}</td>
+							{% endif %}
                             <!-- Stilstand -->
-                            <td>{{ event.stilstand ? 'Ja' : '' }}</td>
-
+							{% if stilstand != false %}
+                            	<td>{{ event.stilstand ? 'Ja' : '' }}</td>
+							{% endif %}
                             <!-- Locatie -->
                             <td>
                                 {{ event.location }}<br/>{{ event.sublocation }}
@@ -506,6 +556,16 @@ color:red;
                                     <div class='dx-badge-header flex-between'>
                                         <div><span class='dim_label'>Door:</span> {{ event.tekst.author }}</div>
                                         <div>{{ event.tekst.date|date('d-m-Y H:i') }} {% if event.completed %}- {{ event.time|date('d-m-Y')~' '~event.date|date('H:i') }}{% endif %}</div>
+<div style='width:14px;'>
+{% if event.for_transfer %}	
+	<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='currentColor' class='bi bi-clipboard' viewBox='0 0 16 16'>
+	<path d='M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z'/>
+		<path d='M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z'/>
+	</svg>
+{% endif %}
+</div>
+
+
                                     </div>
                                 </div>
                                 <div class='event-description{% if event.tekst.text == '' %}-empty{% endif %}' >{{ event.tekst.text }}</div>
@@ -513,6 +573,7 @@ color:red;
 
 							<!-- Status -->
 							<td class='status-cell'>
+							{% if event.params.followup or event.params.followup_email %}
 								{% if event.completed %}
 									<svg stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' class='text-green-600' height='14' width='14' xmlns='http://www.w3.org/2000/svg'><path fill='none' d='M0 0h24v24H0V0z'></path><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z'></path></svg>
 								{% else %}
@@ -521,6 +582,7 @@ color:red;
   <path d='M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z'></path>
 </svg>							
 								{% endif %}
+							{% endif %}
 							</td>
 
 
@@ -535,29 +597,19 @@ color:red;
 											<div class='flex-center'>
 												{% if mail.type != 'conversation' %}
 													{# mail.type #}
-												
-												{% if mail.type == 'inbox' %}
-													<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-													  <!-- Envelope -->
-													  <path fill='#000000' fill-rule='evenodd' clip-rule='evenodd'
-														d='M2.8 4C1.86451 4 1.0468 4.46923 0.544325 5.16792C0.20074 5.64567 0 6.23499 0 6.86667V17.1333C0 18.682 1.21964 20 2.8 20H10.2C10.7523 20 11.2 19.5523 11.2 19C11.2 18.4477 10.7523 18 10.2 18H2.8C2.39214 18 2 17.6466 2 17.1333V7.94766L7.77948 14.3096C8.96986 15.6199 11.0301 15.6199 12.2205 14.3096L18 7.94766V12.1333C18 12.6856 18.4477 13.1333 19 13.1333C19.5523 13.1333 20 12.6856 20 12.1333V6.86667C20 6.235 19.7993 5.64567 19.4557 5.16792C18.9532 4.46923 18.1355 4 17.2 4H2.8ZM9.25983 12.9647L2.9327 6H17.0673L10.7402 12.9647C10.3434 13.4015 9.65662 13.4015 9.25983 12.9647Z'/>
-													  <!-- Arrow pointing left -->
-													  <g transform='translate(37 0) scale(-1 1)'>
-														<path fill='#000000' fill-rule='evenodd' clip-rule='evenodd'
-														  d='M18.2929 21.2929C17.9024 21.6834 17.9024 22.3166 18.2929 22.7071C18.6834 23.0976 19.3166 23.0976 19.7071 22.7071L22.7071 19.7071C23.0976 19.3166 23.0976 18.6834 22.7071 18.2929L19.7071 15.2929C19.3166 14.9024 18.6834 14.9024 18.2929 15.2929C17.9024 15.6834 17.9024 16.3166 18.2929 16.7071L19.5858 18H15C14.4477 18 14 18.4477 14 19C14 19.5523 14.4477 20 15 20H19.5858L18.2929 21.2929Z'/>
-													  </g>
-													</svg>											
-												
-												{% endif %}
 													
 												{% if mail.direction == '' or mail.direction == 'uitgaand' %}	
-													<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
-													  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>
-													  <g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g>
-													  <g id='SVGRepo_iconCarrier'>
-														<path fill-rule='evenodd' clip-rule='evenodd' d='M2.8 4C1.86451 4 1.0468 4.46923 0.544325 5.16792C0.20074 5.64567 0 6.23499 0 6.86667V17.1333C0 18.682 1.21964 20 2.8 20H10.2C10.7523 20 11.2 19.5523 11.2 19C11.2 18.4477 10.7523 18 10.2 18H2.8C2.39214 18 2 17.6466 2 17.1333V7.94766L7.77948 14.3096C8.96986 15.6199 11.0301 15.6199 12.2205 14.3096L18 7.94766V12.1333C18 12.6856 18.4477 13.1333 19 13.1333C19.5523 13.1333 20 12.6856 20 12.1333V6.86667C20 6.235 19.7993 5.64567 19.4557 5.16792C18.9532 4.46923 18.1355 4 17.2 4H2.8ZM9.25983 12.9647L2.9327 6H17.0673L10.7402 12.9647C10.3434 13.4015 9.65662 13.4015 9.25983 12.9647ZM18.2929 21.2929C17.9024 21.6834 17.9024 22.3166 18.2929 22.7071C18.6834 23.0976 19.3166 23.0976 19.7071 22.7071L22.7071 19.7071C23.0976 19.3166 23.0976 18.6834 22.7071 18.2929L19.7071 15.2929C19.3166 14.9024 18.6834 14.9024 18.2929 15.2929C17.9024 15.6834 17.9024 16.3166 18.2929 16.7071L19.5858 18H15C14.4477 18 14 18.4477 14 19C14 19.5523 14.4477 20 15 20H19.5858L18.2929 21.2929Z' fill='#000000'></path>
-													  </g>
+													<svg class='icon-sm icon-gap-mail' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><g id='SVGRepo_bgCarrier' stroke-width='0'></g><g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g><g id='SVGRepo_iconCarrier'> <path d='M4 18L9 12M20 18L15 12M3 8L10.225 12.8166C10.8665 13.2443 11.1872 13.4582 11.5339 13.5412C11.8403 13.6147 12.1597 13.6147 12.4661 13.5412C12.8128 13.4582 13.1335 13.2443 13.775 12.8166L21 8M6.2 19H17.8C18.9201 19 19.4802 19 19.908 18.782C20.2843 18.5903 20.5903 18.2843 20.782 17.908C21 17.4802 21 16.9201 21 15.8V8.2C21 7.0799 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V15.8C3 16.9201 3 17.4802 3.21799 17.908C3.40973 18.2843 3.71569 18.5903 4.09202 18.782C4.51984 19 5.07989 19 6.2 19Z' stroke='#000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'></path> </g></svg>	
+													<!-- arrow -->
+													<svg  class='icon-sm' width='32px' height='32px' viewBox='6 0 18 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+													<g id='SVGRepo_bgCarrier' stroke-width='0'></g>
+													<g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g>
+													<g id='SVGRepo_iconCarrier' {% if mail.type == 'inbox' %} transform='scale(-1,1) translate(-24,0)' {% endif %}> 
+														<g id='Arrow / Arrow_Right_SM'> <path id='Vector' d='M7 12H17M17 12L13 8M17 12L13 16' stroke='#000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'></path> </g> 
+													</g>
 													</svg>
+<!-- transform='scale(-1,1) translate(-24,0)' on iconcarrier -->
+													
 												{% else %} 	
 												<svg class='icon-sm icon-gap text-gray-700' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
 												  <g id='SVGRepo_bgCarrier' stroke-width='0'></g>
@@ -571,7 +623,7 @@ color:red;
 
 
 												{% else %}													
-													<svg class='icon-sm icon-gap text-gray-700' stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+													<svg class='icon-sm icon-gap-comment text-gray-700' stroke='currentColor' fill='currentColor' stroke-width='0' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
 														<path fill='none' d='M0 0h24v24H0V0z'></path>
 														<path d='M17 19.22H5V7h7V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7.22z'></path>
 														<path d='M19 2h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V7h3V5h-3V2zM7 9h8v2H7zM7 12v2h8v-2h-3zM7 15h8v2H7z'></path>
@@ -614,7 +666,11 @@ $template = new  \EXB\Kernel\Template(new Stringloader($templateText));
 
 /* 
 int ShiftId (incident id): id to fetch data [required]
-bool showEventLinks: showing outer left column with url link at event rows
+bool showEventLinks: showing outer left column with url link at event rows, keep true!
 bool showBody: show email body text for each email on event 
 */
-echo $template->render($templateText, ['ShiftId' => 30102,'showEventLinks' => true, 'showBody' => true]);
+$appname = \EXB\R4\Config::get('r6.app_name','Digitaal Logboek');
+$area = \EXB\R4\Config::get('logbook:event.columns_before_1',false);
+$stilstand = \EXB\R4\Config::get('logbook:event.columns_before_2',false);
+
+echo $template->render($templateText, ['appname' => $appname,'ShiftId' => 30102,'showBody' => true,'area' => $area,'stilstand' => $stilstand]);

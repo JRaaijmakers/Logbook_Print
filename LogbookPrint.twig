@@ -44,7 +44,7 @@ setlocale(LC_TIME, 'nl_NL.UTF-8');
 
 $templateText = "
 <html>
-{% set dateArg     = '27-11-2025' %}
+{% set dateArg     = '08-01-2026' %}
 {% set shiftArg    = 'Dagdienst' %}
 {% set locationArg = '' %}
 
@@ -74,7 +74,7 @@ $templateText = "
 {% endif %}
 
 <head>
-	<title>Digitaal Productielogboek - {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}</title>
+	<title>{{ appname }} - {% if Shift.location != '' %} Locatie '{{ Shift.location }}', {% endif%}{{ Shift.displayName }}</title>
 </head>
 <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB' crossorigin='anonymous'>
 <link href='https://demo2.exb-software.com/r6/css/dx.light.css'>
@@ -387,6 +387,7 @@ color:red;
 
 </style>
 <body>
+{{ dump(events) }}
 <div class='container-fluid logscreen'>
     <!-- ===== HEADER ===== -->
     <!--<div class='text-center'>-->
@@ -682,4 +683,4 @@ $appname = \EXB\R4\Config::get('r6.app_name','Digitaal Logboek');
 $area = \EXB\R4\Config::get('logbook:event.columns_before_1',false);
 $stilstand = \EXB\R4\Config::get('logbook:event.columns_before_2',false);
 
-echo $template->render($templateText, ['appname' => $appname,'ShiftId' => 30102,'showBody' => true,'area' => $area,'stilstand' => $stilstand]);
+echo $template->render($templateText, ['appname' => $appname,'ShiftId' => 38367,'showBody' => true,'area' => $area,'stilstand' => $stilstand]);
